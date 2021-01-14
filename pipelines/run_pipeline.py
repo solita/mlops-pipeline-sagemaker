@@ -78,6 +78,8 @@ def main():  # pragma: no cover
         parsed = json.loads(pipeline.definition())
         print(json.dumps(parsed, indent=2, sort_keys=True))
 
+        # FIXME: default for tags converts to {}, which triggers an error
+        # the tags arg needs to be a tuple or list (of dicts) instead
         upsert_response = pipeline.upsert(
             role_arn=args.role_arn, description=args.description, tags=tags
         )
