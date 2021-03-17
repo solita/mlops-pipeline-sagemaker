@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Endpoint definition for AIGA model retriever
+Resources:
+  aigamodelretriever:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: endpoint.lambda_handler
+      Runtime: python3.8
+      CodeUri: .
+      Description: Endpoint definition for AIGA model retriever
+      MemorySize: 512
+      Timeout: 15
+      Role: 'arn:aws:iam::xxxxxxxxxxxx:role/AIGAModelRetrieverRole'
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /
+            Method: GET
+      Tags:
+        Owner: Vlas Sokolov
+        Duedate: '2022-12-30'
