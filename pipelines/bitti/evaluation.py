@@ -4,6 +4,8 @@ from pathlib import Path
 import tarfile
 import turicreate as tc
 
+logging.getLogger().setLevel(logging.INFO)
+
 
 if __name__ == "__main__":
     # define the folder structure we inherited from SageMaker pipelines
