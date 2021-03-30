@@ -4,7 +4,7 @@ import base64
 import json
 import boto3
 
-S3_CONNECTOR = boto3.client('s3')
+S3_CONNECTOR = boto3.client('s3', region_name="eu-west-1")
 S3_BUCKET = 'magazine-monitor'
 S3_PREFIX = "Models"
 URL_PRESIGNED = True
