@@ -18,7 +18,7 @@ from imgaug.augmentables.bbs import BoundingBoxesOnImage
 # TODO: ENV variables might exist requesting a logging level
 logging.getLogger().setLevel(logging.INFO)
 
-BASE_DIR = Path("/opt/ml/augmentation").resolve()
+BASE_DIR = Path("/opt/ml/processing").resolve()
 INPUT_DIR = BASE_DIR/"input"
 OUTPUT_DIR = BASE_DIR/"output"
 

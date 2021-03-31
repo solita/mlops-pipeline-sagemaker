@@ -6,7 +6,6 @@ import turicreate as tc
 
 logging.getLogger().setLevel(logging.INFO)
 
-
 if __name__ == "__main__":
     # define the folder structure we inherited from SageMaker pipelines
     model_dir = Path("/opt/ml/processing/model").resolve()
@@ -39,5 +38,4 @@ if __name__ == "__main__":
                      str(evaluation_path))
     else:
         logging.error("Failed writing the evaluation file!")
-    logging.info("Evaluation script finished. Storing mAP=%.2f into"
-                 " the evaluation report", mAP)
+    logging.info("Evaluation script finished. Storing mAP=%.2f into the evaluation report", mAP)

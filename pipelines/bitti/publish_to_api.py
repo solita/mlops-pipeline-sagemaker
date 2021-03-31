@@ -18,4 +18,4 @@ if __name__ == "__main__":
     bucket_name = "magazine-monitor"
     s3 = boto3.resource('s3')
     s3.Bucket(bucket_name).upload_file(model_file, f"Models/{mlfilename}")
-    logging.info("Uploaded %s to the API-enabled S3 bucket.")
+    logging.info("Uploaded %s to the API-enabled S3 bucket.", mlfilename)
