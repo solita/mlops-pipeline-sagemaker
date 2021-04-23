@@ -89,6 +89,19 @@ def read_conf(cfg_file):
         name='TuriCreateTrainingURI',
         default_value=config['training'].get('image_uri_fmt').format(account_id))
 
+    # settings for model card creation
+    sg_cfg.summarizing_instance_count = ParameterInteger(
+        name='SummarizingInstanceCount',
+        default_value=config['summarizing'].getint('instance_count'))
+
+    sg_cfg.summarizing_instance_type = ParameterString(
+        name='SummarizingInstanceType',
+        default_value=config['summarizing'].get('instance_type'))
+
+    sg_cfg.summarizing_turicreate_uri = ParameterString(
+        name='TuriCreateProcessingURI',
+        default_value=config['summarizing'].get('image_uri_fmt').format(account_id))
+
     # workflow parameters for model approval / rejection
     sg_cfg.model_approval_status = ParameterString(
         name='ModelApprovalStatus',
