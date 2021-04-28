@@ -11,7 +11,8 @@ logging.getLogger().setLevel(logging.INFO)
 
 # TODO: to pipeline params
 EVAL_CUT = 0.4
-EVAL_N_IMAGES = 3
+EVAL_N_IMAGES = 4
+
 
 def draw_predictions(image, predictions, outfile, cut=EVAL_CUT,
                      linewidth=2.5, edgecolor='r', facecolor='none', alpha=.6):
