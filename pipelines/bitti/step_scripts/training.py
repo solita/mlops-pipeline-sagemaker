@@ -36,9 +36,6 @@ def train(train_dir, test_dir, output_dir, batch_size, max_iterations):
     # Save the model for later use in Turi Create
     model.save(str(output_dir/'bitti.model'))
 
-    # Export for use in Core ML
-    model.export_coreml(str(output_dir/'bitti.mlmodel'))
-
 
 def main(args):
     """String-pulling function

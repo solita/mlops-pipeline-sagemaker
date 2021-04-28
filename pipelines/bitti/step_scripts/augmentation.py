@@ -15,7 +15,6 @@ import imgaug.augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox
 from imgaug.augmentables.bbs import BoundingBoxesOnImage
 
-# TODO: ENV variables might exist requesting a logging level
 logging.getLogger().setLevel(logging.INFO)
 
 BASE_DIR = Path("/opt/ml/processing").resolve()
