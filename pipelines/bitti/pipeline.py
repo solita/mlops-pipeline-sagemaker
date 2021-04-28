@@ -44,7 +44,7 @@ step_data_augmentation = ProcessingStep(
 # preprocessing step
 # download the dataset, convert it into Turi Create's SFrame object,
 # and save the output on S3 in a train/test split.
-sframes_preproessor = ScriptProcessor(
+sframes_preprocessor = ScriptProcessor(
     image_uri=str(conf.processing_turicreate_uri),
     command=["python3"],
     instance_type=conf.processing_instance_type,
@@ -55,7 +55,7 @@ sframes_preproessor = ScriptProcessor(
 
 step_sframe_process = ProcessingStep(
     name="BittiDataProcessing",
-    processor=sframes_preproessor,
+    processor=sframes_preprocessor,
     inputs=[
       ProcessingInput(
             source=step_data_augmentation.properties.ProcessingOutputConfig.Outputs[
@@ -144,25 +144,11 @@ step_eval = ProcessingStep(
             destination="/opt/ml/processing/test")],
     outputs=[
         ProcessingOutput(output_name="evaluation",
-                         source="/opt/ml/processing/evaluation")],
-    code=f"{conf.source_dir}/evaluation.py",
-    property_files=[evaluation_report])
-
-step_eval = ProcessingStep(
-    name="ModelEvaluation",
-    processor=script_eval,
-    inputs=[
-        ProcessingInput(
-            source=step_train.properties.ModelArtifacts.S3ModelArtifacts,
-            destination="/opt/ml/processing/model"),
-        ProcessingInput(
-            source=step_sframe_process.properties.ProcessingOutputConfig.Outputs[
-                "test"
-            ].S3Output.S3Uri,
-            destination="/opt/ml/processing/test")],
-    outputs=[
-        ProcessingOutput(
-            output_name="evaluation", source="/opt/ml/processing/evaluation")],
+                         source="/opt/ml/processing/evaluation"),
+        ProcessingOutput(output_name="mlmodel",
+                         source="/opt/ml/processing/mlmodel"),
+        ProcessingOutput(output_name="eval_images",
+                         source="/opt/ml/processing/eval_images")],
     code=f"{conf.source_dir}/evaluation.py",
     property_files=[evaluation_report])
 
@@ -200,13 +186,51 @@ script_publish = ScriptProcessor(
     base_job_name="script-bitti-publish",
     role=conf.role)
 
+# model card generator
+# absolute wild west of a pipleine step
+model_card_generator = ScriptProcessor(
+    image_uri=str(conf.summarizing_turicreate_uri),
+    command=["python3"],
+    instance_type=conf.summarizing_instance_type,
+    instance_count=conf.summarizing_instance_count,
+    base_job_name="script-model-card",
+    role=conf.role)
+
+step_model_card = ProcessingStep(
+    name="ModelCardGenerator",
+    processor=model_card_generator,
+    inputs=[
+        ProcessingInput(
+            source=step_eval.properties.ProcessingOutputConfig.Outputs[
+                "eval_images"
+            ].S3Output.S3Uri,
+            destination="/opt/ml/processing/eval_images"),
+        ProcessingInput(
+            source=step_eval.properties.ProcessingOutputConfig.Outputs[
+                "evaluation"
+            ].S3Output.S3Uri,
+            destination="/opt/ml/processing/evaluation")],
+    outputs=[
+        ProcessingOutput(output_name="model_card",
+                         source="/opt/ml/processing/model_card")],
+    code=f"{conf.source_dir}/model_card.py",
+    cache_config=conf.cache_config)
+
 step_publish = ProcessingStep(
     name="PublishViaAPI",
     processor=script_publish,
     inputs=[
         ProcessingInput(
-            source=step_train.properties.ModelArtifacts.S3ModelArtifacts,
-            destination="/opt/ml/processing/model")],
+            source=step_eval.properties.ProcessingOutputConfig.Outputs[
+                "mlmodel"
+            ].S3Output.S3Uri,
+            destination="/opt/ml/processing/model"),
+        ProcessingInput(
+            source=step_model_card.properties.ProcessingOutputConfig.Outputs[
+                "model_card"
+            ].S3Output.S3Uri,
+            destination="/opt/ml/processing/model_card")
+        ],
     code=f"{conf.source_dir}/publish_to_api.py")
 
 step_cond = ConditionStep(
@@ -220,8 +244,12 @@ pipeline_name = conf.pipeline_name
 pipeline = Pipeline(
     name=pipeline_name,
     parameters=[
+        conf.processing_train_test_split,
         conf.processing_instance_count,
         conf.processing_instance_type,
+        conf.summarizing_instance_count,
+        conf.summarizing_instance_type,
+        conf.training_instance_count,
         conf.training_instance_type,
         conf.training_batch_size,
         conf.training_max_iterations,
@@ -230,4 +258,4 @@ pipeline = Pipeline(
         conf.model_approval_map_threshold
     ],
     steps=[step_data_augmentation, step_sframe_process,
-           step_train, step_eval, step_cond])
+           step_train, step_eval, step_cond, step_model_card])
