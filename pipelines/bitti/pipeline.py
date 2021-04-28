@@ -224,7 +224,7 @@ step_publish = ProcessingStep(
             source=step_eval.properties.ProcessingOutputConfig.Outputs[
                 "mlmodel"
             ].S3Output.S3Uri,
-            destination="/opt/ml/processing/model"),
+            destination="/opt/ml/processing/mlmodel"),
         ProcessingInput(
             source=step_model_card.properties.ProcessingOutputConfig.Outputs[
                 "model_card"
