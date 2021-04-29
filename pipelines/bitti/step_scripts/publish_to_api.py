@@ -26,8 +26,10 @@ def upload_model_card():
     output_file_name = "model_card_latest.html"
     bucket_name = "aigamodelcards.com"
     s3 = boto3.resource('s3')
-    s3.Bucket(bucket_name).upload_file(model_card_file,
-                                       output_file_name)
+    s3.Bucket(bucket_name).upload_file(
+            Filename=model_card_file,
+            Key=output_file_name,
+            ExtraArgs={'ContentType': "text/html"})
     logging.info("Uploaded %s to %s", output_file_name, bucket_name)
 
 
