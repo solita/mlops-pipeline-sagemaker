@@ -138,7 +138,7 @@
               {{ model_details.citation }}{% endif %}
           {% if model_parameters.model_architecture %}
             <h3>Model Architecture</h3>
-              {{ model_parameters.model_architecture }}{% endif %}
+              {{ model_parameters.model_architecture | safe }}{% endif %}
           {% if model_parameters.input_format %}
             <h3>Input Format</h3>
               {{ model_parameters.input_format }}{% endif %}
