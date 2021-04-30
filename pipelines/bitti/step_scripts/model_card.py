@@ -1,12 +1,18 @@
 """Proof-of-concept for model card integration in SageMaker Pipelines"""
 import logging
+import tempfile
+import urllib
 from pathlib import Path
 from datetime import datetime
 import dataclasses
-from typing import List, Text, Union
+from typing import List, Text, Union, Optional
 import json
 import base64
 import boto3
+import jinja2
+# lots of model card tutorial stuff gets skipped here because we add
+# custom names to the model card schema, while, e.g. `mtc.export_format`
+# method has the top-level names hardcoded into the method definition
 import model_card_toolkit
 
 logging.getLogger().setLevel(logging.INFO)
@@ -14,6 +20,9 @@ logging.getLogger().setLevel(logging.INFO)
 BASE_DIR = Path("/opt/ml/processing").resolve()
 EVAL_REPORT_DIR = BASE_DIR/"evaluation"
 EVAL_IMAGES_DIR = BASE_DIR/"eval_images"
+JINJA_TEMPLATE_URI = ("https://raw.githubusercontent.com/"
+                      "solita/mlops-pipeline-sagemaker/"
+                      "main/templates/model_card.html.jinja")
 OUTPUT_DIR = BASE_DIR/"model_card"
 
 # TODO: if putting this into its own step, we'll need to find the
@@ -35,10 +44,13 @@ class OperationalSetting:
     """
     type: Text
     value: Union[int, float, Text]
+    confidence_interval: Optional[model_card_toolkit.ConfidenceInterval] = None
+    threshold: Optional[float] = None
+    slice: Optional[Text] = None
 
 
 @dataclasses.dataclass
-class PipelineParameters:
+class PipelineSettings:
     """Parameters of pipeline's execution run.
 
     Attributes:
@@ -52,6 +64,16 @@ def _fetch_def_parval(parsed_json, parname):
     matches = [p['DefaultValue'] for p in parsed_json['Parameters']
                if p['Name'] == parname]
     return matches[0] if matches else None
+
+
+@dataclasses.dataclass
+class PipelineModelCard(model_card_toolkit.ModelCard):
+    """
+      pipeline_settings: Operational settings for the pipeline run.
+    """
+    __doc__ += model_card_toolkit.ModelCard.__doc__
+    pipeline_settings: PipelineSettings = dataclasses.field(
+        default_factory=PipelineSettings)
 
 
 pipeline_name = "BittiPipeline"
@@ -111,8 +133,7 @@ mAP = model_card_toolkit.PerformanceMetric(
 #       the model-card-toolkit - still have to check for compatible versions.
 # TODO: the rest of the - very voluminous! - descriptions should be migrated
 #       into the .ini file and used as pipeline parameters perhaps?
-mct = model_card_toolkit.ModelCardToolkit()
-model_card = mct.scaffold_assets()
+model_card = PipelineModelCard()
 model_card.model_details.name = pipeline_name
 model_card.model_details.overview = (
         "This is an explainability report supplementing a magazine logo"
@@ -174,32 +195,31 @@ mct_data.augmented = model_card_toolkit.Dataset(
 turicreate_object_detection_uri = (
         "https://github.com/apple/turicreate/blob/"
         "master/userguide/object_detection/how-it-works.md")
-# TODO: figure out how to pass Jinja's {{ value | safe }} here
-# model_card.model_parameters.model_architecture = (
-#         "TinyYOLO re-implemneted in turicreate. Extensive writeup"
-#         " about the turicreate implementation can be found"
-#         f" here: <a href=\"{turicreate_object_detection_uri}\">"
-#         "How TuriCreate object detection works.</a>")
+# the model arch section has a {{ value | safe }} in the template
 model_card.model_parameters.model_architecture = (
         "TinyYOLO re-implemneted in turicreate. Extensive writeup"
         " about the turicreate implementation can be found"
-        f" here: {turicreate_object_detection_uri}")
+        f" here: <a href=\"{turicreate_object_detection_uri}\">"
+        "How TuriCreate object detection works.</a>")
 
 model_card.quantitative_analysis.performance_metrics.append(mAP)
-model_card.quantitative_analysis.performance_metrics.extend([
-        model_card_toolkit.PerformanceMetric(
+
+model_card.pipeline_settings = PipelineSettings()
+model_card.pipeline_settings.pipeline_parameters.extend([
+        OperationalSetting(
           type='Fraction of data reserved for training',
           value=train_test_split),
-        model_card_toolkit.PerformanceMetric(
+        OperationalSetting(
           type='Training: maximum number of iterations',
           value=max_iterations),
-        model_card_toolkit.PerformanceMetric(
+        OperationalSetting(
           type='Training: batch size',
           value=training_batch_size),
-        model_card_toolkit.PerformanceMetric(
+        OperationalSetting(
           type='Training: instance type',
           value=training_instance_type),
-        model_card_toolkit.PerformanceMetric(
+        # model_card_toolkit.PerformanceMetric(
+        OperationalSetting(
           type='Model approval mAP threshold',
           value=model_approval_map_cut),
 ])
@@ -269,9 +289,25 @@ model_card.considerations.ethical_considerations = [
             " mobile phone, a mitigation strategy for the issue above is to"
             " limit the data storage to that of a local device."))]
 
-mct.update_model_card_json(model_card)
-html = mct.export_format()
+# fetch the jinja template and generate the model card
+mc_json = json.loads(model_card.to_json())
 
-logging.info("Created a model card HTML: \n%s", html)
+with tempfile.NamedTemporaryFile() as tmp:
+    urllib.request.urlretrieve(JINJA_TEMPLATE_URI, tmp.name)
+    temp_path = Path(tmp.name).resolve()
+    jinja_env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(temp_path.parent),
+        autoescape=True, auto_reload=True, cache_size=0)
+
+    template = jinja_env.get_template(temp_path.name)
+
+    model_card_html = template.render(
+        model_details=mc_json['model_details'],
+        model_parameters=mc_json.get('model_parameters', {}),
+        quantitative_analysis=mc_json.get('quantitative_analysis', {}),
+        pipeline_settings=mc_json.get('pipeline_settings', {}),
+        considerations=mc_json.get('considerations', {}))
+
+logging.info("Created a model card HTML, saving to %s", OUTPUT_DIR)
 with open(OUTPUT_DIR/"model_card.html", "w") as fout:
-    fout.write(html)
+    fout.write(model_card_html)
