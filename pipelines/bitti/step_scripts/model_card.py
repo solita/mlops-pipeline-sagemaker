@@ -309,5 +309,7 @@ with tempfile.NamedTemporaryFile() as tmp:
         considerations=mc_json.get('considerations', {}))
 
 logging.info("Created a model card HTML, saving to %s", OUTPUT_DIR)
-with open(OUTPUT_DIR/"model_card.html", "w") as fout:
-    fout.write(model_card_html)
+with open(OUTPUT_DIR/"model_card.html", "w") as fout_html:
+    fout_html.write(model_card_html)
+with open(OUTPUT_DIR/"model_card.json", "w") as fout_json:
+    json.dump(mc_json, fout_json)
